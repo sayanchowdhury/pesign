@@ -1,0 +1,24 @@
+From f5cb0d11f73a3b3b6b6c58b8f96ebb3da58bf5d0 Mon Sep 17 00:00:00 2001
+From: Vagrant Cascadian <vagrant@reproducible-builds.org>
+Date: Sat, 15 Jan 2022 20:43:57 +0000
+Subject: [PATCH] Make.defaults: Use relative path to include dir.
+
+This allows for reproducible builds even when the build path differs
+between two builds.
+
+https://reproducible-builds.org/docs/build-path/
+
+
+diff --git a/Make.defaults b/Make.defaults
+index 05aadd0..434d13d 100644
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -62,7 +62,7 @@ cflags	= $(CFLAGS) $(ARCH3264) \
+ 	$(call enabled,ENABLE_LEAK_CHECKER,-Wno-analyzer-malloc-leak,) \
+ 	-Werror -Wno-error=cpp -Wno-free-nonheap-object \
+ 	-std=gnu11 -fshort-wchar -fPIC -fno-strict-aliasing \
+-	-D_GNU_SOURCE -DCONFIG_$(ARCH) -I${TOPDIR}/include \
++	-D_GNU_SOURCE -DCONFIG_$(ARCH) -I../include \
+ 	'-DRUNDIR="$(rundir)"' \
+ 	$(if $(filter $(CC),clang),$(clang_cflags), ) \
+ 	$(if $(filter $(CC),gcc),$(gcc_cflags), ) \

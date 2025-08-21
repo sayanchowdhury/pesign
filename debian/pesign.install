@@ -1,0 +1,33 @@
+#!/bin/sh
+
+bindir=usr/bin
+sbindir=usr/sbin
+datadir=usr/share
+includedir=usr/include
+libdir=usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)
+libexecdir=${libdir}
+mandir=${datadir}/man
+sysconfdir=etc
+localstatedir=var
+unitdir=usr/lib/systemd/system
+prefix=usr
+
+echo ${bindir}/authvar
+echo ${bindir}/efikeygen
+echo ${bindir}/pesigcheck
+echo ${bindir}/pesign
+echo ${bindir}/pesign-client
+echo ${sysconfdir}/popt.d/pesign.popt
+#echo %{macrosdir}/macros.pesign
+echo ${mandir}/man\*/\*
+echo /etc/pki/pesign
+#echo ${localstatedir}/run/pesign
+#echo ${localstatedir}/lib/pesign
+#echo %ghost %attr(0660, -, -) ${localstatedir}/run/%{name}/socket
+#echo %ghost %attr(0660, -, -) ${localstatedir}/run/%{name}/pesign.pid
+echo ${prefix}/lib/tmpfiles.d/pesign.conf
+echo ${unitdir}/pesign.service ${unitdir}
+# echo ${datadir}/pesign/pesign-authorize
+echo ${sysconfdir}/pesign/users
+echo ${sysconfdir}/pesign/groups
+

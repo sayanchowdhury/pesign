@@ -1,0 +1,5 @@
+fix-makefile-bashisms.patch
+0001-Make.defaults-Use-relative-path-to-include-dir.patch
+stop_arm_linker_wchar_warnings.patch
+t64-fix.patch
+fix-calloc-parameter-order.patch

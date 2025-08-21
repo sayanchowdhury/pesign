@@ -1,0 +1,29 @@
+diff --git a/src/efikeygen.c b/src/efikeygen.c
+index dd40502..2fa619f 100644
+--- a/src/efikeygen.c
++++ b/src/efikeygen.c
+@@ -1102,7 +1102,7 @@ int main(int argc, char *argv[])
+ 	} else {
+ 		// Mon Jan 19 03:14:07 GMT 2037, aka 0x7fffffff minus 1 year.
+ 		time_t time = 0x7ffffffful - 60ul * 60 * 24 * 365;
+-		dbgprintf("not_valid_after:%lu", time);
++		dbgprintf("not_valid_after:%llu", (unsigned long long)time);
+ 		not_after = (PRTime)time * PR_USEC_PER_SEC;
+ 	}
+ 	dbgprintf("not_after:%"PRId64, not_after);
+diff --git a/src/util.h b/src/util.h
+index 6616011..e22789f 100644
+--- a/src/util.h
++++ b/src/util.h
+@@ -272,8 +272,8 @@ extern long verbosity(void);
+ #define dbgprintf_(tv, file, func, line, fmt, args...) ({	\
+ 		struct timeval tv;				\
+ 		gettimeofday(&tv, NULL);			\
+-		warnx("%ld.%lu %s:%s():%d: " fmt,		\
+-		      tv.tv_sec, tv.tv_usec,			\
++		warnx("%lld.%llu %s:%s():%d: " fmt,		\
++		      (long long)tv.tv_sec, (unsigned long long)tv.tv_usec,			\
+ 		      file, func, line, ##args);		\
+ 	})
+ #if defined(PESIGN_DEBUG)
+

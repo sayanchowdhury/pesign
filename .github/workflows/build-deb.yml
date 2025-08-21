@@ -1,0 +1,110 @@
+# Build pesign .deb using dedicated dpkg action
+name: Build pesign .deb Package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for version info
+
+    - name: Prepare version info
+      id: version
+      run: |
+        COMMIT_HASH="$(git rev-parse --short HEAD)"
+        COMMIT_DATE="$(git show -s --format=%ci HEAD | cut -d' ' -f1 | tr -d '-')"
+
+        # Robust BASE_VERSION: read from VERSION if present, else 116
+        if [ -r VERSION ]; then
+          BASE_VERSION="$(tr -d '\n' < VERSION)"
+        else
+          BASE_VERSION=116
+        fi
+
+        VERSION="${BASE_VERSION}+git${COMMIT_DATE}.${COMMIT_HASH}"
+
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+        echo "commit_hash=${COMMIT_HASH}" >> "$GITHUB_OUTPUT"
+        echo "Building version: $VERSION for Debian trixie"
+
+        # Update changelog if needed
+        if [ -f debian/changelog ] && ! grep -q "$COMMIT_HASH" debian/changelog; then
+          echo "Updating changelog for current HEAD..."
+          cp debian/changelog debian/changelog.bak
+
+          first_line="$(head -1 debian/changelog)"
+          first_line_bumped="$(printf '%s\n' "$first_line" | sed -E "s/\([^)]*\)/(${VERSION}-1)/")"
+
+          orig_changelog="$(cat debian/changelog)"
+
+          {
+            printf 'pesign (%s-1) unstable; urgency=medium\n\n' "$VERSION"
+            printf '  * Manual build from HEAD commit %s\n' "$COMMIT_HASH"
+            printf '  * Built via GitHub Actions for Debian trixie\n'
+            printf '  * Repository: %s\n\n' "${GITHUB_REPOSITORY:-unknown/unknown}"
+            # Exactly one leading space before --, two spaces before the date
+            printf ' -- %s <%s@users.noreply.github.com>  %s\n\n' \
+              "${GITHUB_ACTOR:-builder}" "${GITHUB_ACTOR:-builder}" "$(date -R)"
+
+            printf '%s\n' "$orig_changelog"
+          } > debian/changelog.new
+
+          mv debian/changelog.new debian/changelog
+        fi
+
+    - name: Debug changelog
+      run: |
+        echo "==== debian/changelog ===="
+        cat debian/changelog || echo "No changelog file found"
+
+    - name: Build .deb package
+      uses: sayanchowdhury/build-dpkg-trixie@v1
+      id: build
+      with:
+        args: --unsigned-source --unsigned-changes --build=binary
+
+    - name: Display build results
+      run: |
+        echo "=== Build completed successfully! ==="
+        echo "Package filename: ${{ steps.build.outputs.filename }}"
+        echo "Package path: ${{ steps.build.outputs.filepath }}"
+
+        # Show package info if available
+        if [ -f "${{ steps.build.outputs.filepath }}" ]; then
+          echo "=== Package Information ==="
+          dpkg --info "${{ steps.build.outputs.filepath }}"
+          echo ""
+          echo "=== Package Contents ==="
+          dpkg --contents "${{ steps.build.outputs.filepath }}" | head -20
+          if [ $(dpkg --contents "${{ steps.build.outputs.filepath }}" | wc -l) -gt 20 ]; then
+            echo "... (showing first 20 files)"
+          fi
+        fi
+
+    - name: Upload .deb artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pesign-deb-trixie-${{ steps.version.outputs.version }}
+        path: ${{ steps.build.outputs.filename }}
+        retention-days: 90
+
+    # Optional: Test installation
+    - name: Test package installation
+      run: |
+        echo "Testing package installation..."
+        sudo dpkg -i "${{ steps.build.outputs.filepath }}" || {
+          echo "Installation failed, trying to fix dependencies..."
+          sudo apt-get update
+          sudo apt-get install -f -y
+        }
+
+        # Test that pesign is available
+        echo "Verifying pesign installation..."
+        which pesign || echo "pesign binary not found in PATH"
+        pesign --help | head -5 || echo "pesign help command failed"
