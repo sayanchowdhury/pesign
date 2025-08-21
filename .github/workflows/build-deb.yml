@@ -1,0 +1,70 @@
+# Simple workflow for your own fork of pesign
+name: Build .deb Package for pesign
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential devscripts debhelper \
+          pkg-config libnss3-dev libnspr4-dev uuid-dev help2man mandoc
+
+    - name: Setup Debian packaging
+      run: |
+        VERSION="$(cat VERSION 2>/dev/null || echo '116')+git$(date +%Y%m%d).$(git rev-parse --short HEAD)"
+
+        mkdir -p debian
+
+        # Minimal debian/control
+        cat > debian/control << EOF
+        Source: pesign
+        Maintainer: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
+        Build-Depends: debhelper-compat (= 13), pkg-config, libnss3-dev, libnspr4-dev, uuid-dev, help2man, mandoc
+
+        Package: pesign
+        Architecture: any
+        Depends: \${shlibs:Depends}, \${misc:Depends}
+        Description: Signing utility for UEFI binaries
+        EOF
+
+        # Minimal debian/rules
+        cat > debian/rules << 'EOF'
+        #!/usr/bin/make -f
+        %:
+        	dh $@
+        override_dh_auto_install:
+        	$(MAKE) install DESTDIR=$(CURDIR)/debian/pesign PREFIX=/usr
+        EOF
+        chmod +x debian/rules
+
+        # Changelog
+        echo "pesign ($VERSION-1) unstable; urgency=medium" > debian/changelog
+        echo "  * Automated build from HEAD" >> debian/changelog
+        echo " -- ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>  $(date -R)" >> debian/changelog
+
+        echo "13" > debian/compat
+
+    - name: Build package
+      run: |
+        dpkg-buildpackage -b -us -uc
+        mkdir artifacts
+        mv ../*.deb artifacts/
+        ls -la artifacts/
+
+    - name: Upload package
+      uses: actions/upload-artifact@v4
+      with:
+        name: pesign-deb
+        path: artifacts/*.deb
