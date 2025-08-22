@@ -1,70 +1,119 @@
-# Simple workflow for your own fork of pesign
-name: Build .deb Package for pesign
+# Manual .deb build for pesign fork
+name: Build pesign .deb Package
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      ubuntu_version:
+        description: 'Ubuntu version to build on'
+        required: false
+        default: '22.04'
+        type: choice
+        options:
+        - '22.04'
+        - '24.04'
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-${{ github.event.inputs.ubuntu_version || '22.04' }}
 
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Install dependencies
+    - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential devscripts debhelper \
-          pkg-config libnss3-dev libnspr4-dev uuid-dev help2man mandoc
 
-    - name: Setup Debian packaging
+        # Install basic build tools
+        sudo apt-get install -y build-essential devscripts debhelper
+
+        # Extract and install dependencies from debian/control
+        if [ -f "debian/control" ]; then
+          echo "Installing dependencies from debian/control..."
+          sudo mk-build-deps debian/control --install --remove --tool="apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y"
+        else
+          # Fallback dependencies
+          sudo apt-get install -y pkg-config libnss3-dev libnspr4-dev uuid-dev help2man mandoc
+        fi
+
+    - name: Check and setup Debian packaging
       run: |
-        VERSION="$(cat VERSION 2>/dev/null || echo '116')+git$(date +%Y%m%d).$(git rev-parse --short HEAD)"
+        if [ -d "debian" ]; then
+          echo "✓ Found existing debian/ directory"
+          ls -la debian/
 
-        mkdir -p debian
+          # Generate version info for potential changelog update
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          COMMIT_DATE=$(git show -s --format=%ci HEAD | cut -d' ' -f1 | tr -d '-')
+          BASE_VERSION=$(cat VERSION 2>/dev/null || echo '116')
+          VERSION="${BASE_VERSION}+git${COMMIT_DATE}.${COMMIT_HASH}"
 
-        # Minimal debian/control
-        cat > debian/control << EOF
-        Source: pesign
-        Maintainer: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
-        Build-Depends: debhelper-compat (= 13), pkg-config, libnss3-dev, libnspr4-dev, uuid-dev, help2man, mandoc
+          echo "Building with version: $VERSION"
 
-        Package: pesign
-        Architecture: any
-        Depends: \${shlibs:Depends}, \${misc:Depends}
-        Description: Signing utility for UEFI binaries
+          # Check if we need to update changelog for HEAD build
+          if ! grep -q "$COMMIT_HASH" debian/changelog; then
+            echo "Updating changelog for current HEAD..."
+            cp debian/changelog debian/changelog.bak
+
+            cat > debian/changelog.new << EOF
+        $(head -1 debian/changelog | sed "s/([^)]*)/($VERSION-1)/")
+
+          * Build from HEAD commit $COMMIT_HASH
+          * Manual build via GitHub Actions
+
+         -- ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>  $(date -R)
+
         EOF
+            tail -n +2 debian/changelog >> debian/changelog.new
+            mv debian/changelog.new debian/changelog
+          fi
 
-        # Minimal debian/rules
-        cat > debian/rules << 'EOF'
-        #!/usr/bin/make -f
-        %:
-        	dh $@
-        override_dh_auto_install:
-        	$(MAKE) install DESTDIR=$(CURDIR)/debian/pesign PREFIX=/usr
-        EOF
-        chmod +x debian/rules
+          # Make sure debian/rules is executable
+          chmod +x debian/rules
+        else
+          echo "❌ No debian/ directory found!"
+          echo "Please copy the official Debian packaging files to debian/ directory"
+          exit 1
+        fi
 
-        # Changelog
-        echo "pesign ($VERSION-1) unstable; urgency=medium" > debian/changelog
-        echo "  * Automated build from HEAD" >> debian/changelog
-        echo " -- ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>  $(date -R)" >> debian/changelog
-
-        echo "13" > debian/compat
-
-    - name: Build package
+    - name: Build and test package
       run: |
+        # Build the package
         dpkg-buildpackage -b -us -uc
+
+        # Create artifacts directory
         mkdir artifacts
         mv ../*.deb artifacts/
+
+        # Show what we built
+        echo "Built packages:"
         ls -la artifacts/
 
-    - name: Upload package
+        # Show package info
+        for deb in artifacts/*.deb; do
+          echo "=== Package info for $(basename $deb) ==="
+          dpkg --info "$deb"
+          echo "=== Package contents ==="
+          dpkg --contents "$deb"
+        done
+
+    - name: Test installation (optional)
+      run: |
+        # Test that the package can be installed
+        sudo dpkg -i artifacts/*.deb || {
+          echo "Installation failed, trying to fix dependencies..."
+          sudo apt-get install -f -y
+        }
+
+        # Verify pesign is working
+        echo "Testing pesign installation..."
+        which pesign
+        pesign --help | head -10 || echo "Help command failed"
+
+    - name: Upload .deb package
       uses: actions/upload-artifact@v4
       with:
-        name: pesign-deb
+        name: pesign-deb-ubuntu-${{ github.event.inputs.ubuntu_version || '22.04' }}
         path: artifacts/*.deb
