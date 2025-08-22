@@ -10,6 +10,7 @@ on:
         default: '22.04'
         type: choice
         options:
+        - '20.04'
         - '22.04'
         - '24.04'
 
@@ -26,15 +27,16 @@ jobs:
       run: |
         sudo apt-get update
 
-        # Install basic build tools
-        sudo apt-get install -y build-essential devscripts debhelper
+        # Install basic build tools and equivs for mk-build-deps
+        sudo apt-get install -y build-essential devscripts debhelper equivs
 
         # Extract and install dependencies from debian/control
         if [ -f "debian/control" ]; then
           echo "Installing dependencies from debian/control..."
           sudo mk-build-deps debian/control --install --remove --tool="apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y"
         else
-          # Fallback dependencies
+          # Fallback dependencies if no debian/control
+          echo "No debian/control found, installing common dependencies..."
           sudo apt-get install -y pkg-config libnss3-dev libnspr4-dev uuid-dev help2man mandoc
         fi
 
@@ -117,3 +119,4 @@ jobs:
       with:
         name: pesign-deb-ubuntu-${{ github.event.inputs.ubuntu_version || '22.04' }}
         path: artifacts/*.deb
+        retention-days: 90  # Keep for 3 months
