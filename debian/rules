@@ -1,0 +1,23 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
+export DH_OPTIONS=-V
+
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+buildroot	:= debian/tmp
+libexecdir	:= /usr/share
+
+export libexecdir
+
+%:
+	dh $@
+override_dh_auto_install:
+	dh_auto_install --destdir=${buildroot} -- libexecdir=${libexecdir} install_systemd install_sysvinit
+override_dh_install:
+	tar zxf debian/test-certs.tgz -C debian/pesign
+	find ${buildroot} -type f
+	dh_install
+	#modutil -force -dbdir ${buildroot}/etc/pki/pesign -add coolkey -libfile /usr/lib/$(DEB_HOST_MULTIARCH)/pkcs11/libcoolkeypk11.so
+	modutil -force -dbdir ${buildroot}/etc/pki/pesign -add opensc -libfile /usr/lib/$(DEB_HOST_MULTIARCH)/pkcs11/opensc-pkcs11.so

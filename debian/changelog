@@ -1,0 +1,210 @@
+pesign (116-8.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Add upstream patch to fix calloc parameter order, that was causing an
+    FTBFS with GCC-14. Closes: #1075379.
+
+ -- Margarita Manterola <marga@debian.org>  Sun, 06 Apr 2025 15:28:31 +0200
+
+pesign (116-8) unstable; urgency=medium
+
+  * Stop installing things outside of /usr. Closes: #1073639.
+  * Tweak the arm warnings patch to not fail on arm64 chroots too.
+    Closes: #1073845
+
+ -- Steve McIntyre <93sam@debian.org>  Sun, 14 Jul 2024 18:47:52 +0100
+
+pesign (116-7) unstable; urgency=medium
+
+  * Fix t64 breakage on 32-bit architectures. Closes: #1068147
+
+ -- Steve McIntyre <93sam@debian.org>  Thu, 18 Apr 2024 21:24:46 +0100
+
+pesign (116-6) unstable; urgency=medium
+
+  * Move passwd from Build-Depends to Depends, Closes: #1054449
+    Doh!
+
+ -- Steve McIntyre <93sam@debian.org>  Sun, 12 Nov 2023 21:32:02 +0000
+
+pesign (116-5) unstable; urgency=medium
+
+  * Add the new pesign-authorize script, replacement for the
+    already-removed pesign-authorize-users and
+    pesign-authorize-groups. Closes: #1055325
+  * Tweak patch filename for clarity
+
+ -- Steve McIntyre <93sam@debian.org>  Sat, 04 Nov 2023 16:20:04 +0000
+
+pesign (116-4) unstable; urgency=medium
+
+  * Switch build to be arch:any. Closes: #1055258
+
+ -- Steve McIntyre <93sam@debian.org>  Fri, 03 Nov 2023 13:05:21 +0000
+
+pesign (116-3) unstable; urgency=medium
+
+  * Disable linker warnings about wchar_t on 32-bit arm.
+  * Also build for riscv64 and loong64
+
+ -- Steve McIntyre <93sam@debian.org>  Thu, 02 Nov 2023 15:05:21 +0000
+
+pesign (116-2) unstable; urgency=medium
+
+  * Add build-dep on mandoc.
+
+ -- Steve McIntyre <93sam@debian.org>  Thu, 02 Nov 2023 12:01:18 +0000
+
+pesign (116-1) unstable; urgency=medium
+
+  * New upstream version 116
+    * Remove old patches, all upstream now
+    * Add new patches:
+      * Remove bashisms in Makefiles
+      * Update a patch to make build reproducible. Closes: #1003787
+    * Various programs are now gone, fix up packaging to match:
+      * efisiglist; replaced by efisecdb in the efivar package
+      * pesign-authorize-users / pesign-authorize-groups
+        (Fixes CVE-2022-3560, Closes: #1030168)
+    * No longer uses /var/run. Closes: 964157
+  * Add build-dep on new libefisec-dev
+  * Move user/group setup from preinst to postinst, and add a
+    dependency on passwd. Closes: #1054449
+  * Now seems to work OK using LTO in the build. Closes: #1015578.
+
+ -- Steve McIntyre <93sam@debian.org>  Wed, 01 Nov 2023 22:25:43 +0000
+
+pesign (0.112-6) unstable; urgency=medium
+
+  * Fix FTBFS with new versions of NSS, using patch from
+    upstream. Thanks to Dan Nicholson. Closes: #948645
+  * Update Standards-Version to 4.5.1
+  * Update debhelper compat to 10
+
+ -- Steve McIntyre <93sam@debian.org>  Fri, 01 Jan 2021 22:34:53 +0000
+
+pesign (0.112-5) unstable; urgency=high
+
+  * Move git repo from alioth to salsa.d.o
+  * efisiglist: Copy the header correctly (Closes: #928491)
+  * Update obsolete Build-Depends (remove dh-systemd, update debhelper)
+
+ -- Steve McIntyre <93sam@debian.org>  Sun, 05 May 2019 21:22:21 +0100
+
+pesign (0.112-4) unstable; urgency=medium
+
+  * Team upload.
+  * Fix race between printing prompt and disabling tty echo.
+
+ -- Julien Cristau <jcristau@debian.org>  Sat, 13 May 2017 17:36:43 +0200
+
+pesign (0.112-3) unstable; urgency=medium
+
+  * Team upload.
+  * Pass libexecdir correctly to sub-makes so the service file has the right
+    path.
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 27 Jun 2016 13:59:55 +0200
+
+pesign (0.112-2) unstable; urgency=medium
+
+  [ Julien Cristau ]
+  * Fix pesign service file installation. Closes: #828192
+  * Fix command line parsing. Closes: #828682
+
+ -- Steve McIntyre <93sam@debian.org>  Mon, 27 Jun 2016 10:31:50 +0200
+
+pesign (0.112-1) unstable; urgency=low
+
+  [ Daniel Jared Dominguez ]
+  * update VCS info
+  * use debian-efi list as maintainer
+
+  [ Peter Jones ]
+  * Make "make install_systemd" and "make install_sysvinit" not error.
+  * Install authvar and efisiglist
+  * Make --clear without --export actually work.
+  * Make x509 certs in siglists work.
+  * Ignore some things that wind up in a working tree pretty often.
+  * make efi_guid_t's const.
+
+  [ Pat Riehecky ]
+  * A more plugable way of setting ACLs for pesign
+
+  [ Peter Jones ]
+  * Propogate some "const" declarations better.
+  * Make efivar compiler parameters come from pkg-config.
+  * Add "install" targets for 3c2374b and make the filenames a little nicer.
+
+  [ Daniel Jared Dominguez ]
+  * add manpages for authvar/efisiglist and escape dashes in existing manpages
+
+  [ Peter Jones ]
+  * Make pesign-authorize-{users,groups} not be in sbin.
+
+  [ Gary Ching-Pang Lin ]
+  * Correct the signature size check
+
+  [ Peter Jones ]
+  * Revamp the makefile system entirely.
+  * Don't let make autogenerate a rule for "%".
+  * Fix some -Wsign-compare warnings
+  * Bump version to 0.111
+  * Fix one more -Wsign-compare problem I missed.
+  * pesign: when nss fails to tell us -EPERM or -ENOENT, figure it out.
+  * setfacl the nss DBs to our authorized users, not just the socket.
+  * Don't setfacl when the socket or dir aren't there.
+  * setfacl the db as well
+  * Get rid of KeyIdTemplate; it is unused.
+
+  [ Mirco Tischler ]
+  * fix double $prefix when installing to $docdir
+
+  [ Peter Jones ]
+  * libdpe: Fix a plausible but unrealistic "may be used uninitialized"
+  * Fix our makefile rule so the target binaries are getting linked -g
+  * efikeygen: fix missing libefivar dep for efi_guid_zero
+  * pesigcheck pesign: use LDLIBS+= to link in libdpe.a
+  * efikeygen: don't hide --dbdir option
+  * authvar: add --list-supported-sigs
+  * Minor whitespace fix.
+  * Make -Werror=unused-parameter work.
+  * Make -Werror=type-limits work.
+  * Make -Werror=missing-field-initializers work.
+  * make pesigcheck be able to get cert dbs from a file
+  * makefile crap
+  * try even harder to restrict the time checking in pesigcheck
+  * pesigcheck: check dbfile and dbxfile from popt
+  * efisiglist: add --infile
+  * libdpe: get rid of all the stupid locking
+  * Make things that don't touch PE not need libdpe.
+  * Improve our setfacl scripts for database and socket ownership.
+  * Do a better job of isolating pesign-rh-test-crap
+  * Bump version to 0.112
+
+  [ Daniel Jared Dominguez ]
+  * new upstream release (Closes: #819766)
+  * remove old quilt patches
+
+ -- Daniel Jared Dominguez <Jared_Dominguez@Dell.com>  Wed, 20 Apr 2016 13:27:37 -0500
+
+pesign (0.110-3) UNRELEASED; urgency=low
+
+  * update VCS info
+  * use debian-efi list as maintainer
+
+ -- Daniel Jared Dominguez <Jared_Dominguez@Dell.com>  Wed, 29 Jul 2015 20:12:43 -0500
+
+pesign (0.110-2) unstable; urgency=medium
+
+  * uncomment VCS information in debian/control
+  * change package priority because of dependency on opensc
+
+ -- Daniel Jared Dominguez <Jared_Dominguez@Dell.com>  Tue, 23 Jun 2015 17:51:13 -0500
+
+pesign (0.110-1) unstable; urgency=low
+
+  * Initial release (Closes: #786462)
+
+ -- Daniel Jared Dominguez <Jared_Dominguez@Dell.com>  Thu, 21 May 2015 13:44:16 -0500
+
