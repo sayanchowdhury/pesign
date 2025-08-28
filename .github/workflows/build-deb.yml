@@ -41,14 +41,18 @@ jobs:
           first_line="$(head -1 debian/changelog)"
           first_line_bumped="$(printf '%s\n' "$first_line" | sed -E "s/\([^)]*\)/(${VERSION}-1)/")"
 
+          orig_changelog="$(cat debian/changelog)"
+
           {
-            printf '%s\n\n' "$first_line_bumped"
+            printf 'pesign (%s-1) unstable; urgency=medium\n\n' "$VERSION"
             printf '  * Manual build from HEAD commit %s\n' "$COMMIT_HASH"
             printf '  * Built via GitHub Actions for Debian trixie\n'
             printf '  * Repository: %s\n\n' "${GITHUB_REPOSITORY:-unknown/unknown}"
+            # Exactly one leading space before --, two spaces before the date
             printf ' -- %s <%s@users.noreply.github.com>  %s\n\n' \
               "${GITHUB_ACTOR:-builder}" "${GITHUB_ACTOR:-builder}" "$(date -R)"
-            tail -n +2 debian/changelog
+
+            printf '%s\n' "$orig_changelog"
           } > debian/changelog.new
 
           mv debian/changelog.new debian/changelog
