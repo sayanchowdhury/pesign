@@ -54,6 +54,11 @@ jobs:
           mv debian/changelog.new debian/changelog
         fi
 
+    - name: Debug changelog
+      run: |
+        echo "==== debian/changelog ===="
+        cat debian/changelog || echo "No changelog file found"
+
     - name: Build .deb package
       uses: sayanchowdhury/build-dpkg-trixie@v1
       id: build
