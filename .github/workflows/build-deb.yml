@@ -1,122 +1,92 @@
-# Manual .deb build for pesign fork
+# Build pesign .deb using dedicated dpkg action
 name: Build pesign .deb Package
 
 on:
   workflow_dispatch:
-    inputs:
-      ubuntu_version:
-        description: 'Ubuntu version to build on'
-        required: false
-        default: '22.04'
-        type: choice
-        options:
-        - '20.04'
-        - '22.04'
-        - '24.04'
 
 jobs:
-  build:
-    runs-on: ubuntu-${{ github.event.inputs.ubuntu_version || '22.04' }}
+  build-deb:
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
       with:
-        fetch-depth: 0
+        fetch-depth: 0  # Need full history for version info
 
-    - name: Install build dependencies
+    - name: Prepare version info
+      id: version
       run: |
-        sudo apt-get update
+        COMMIT_HASH=$(git rev-parse --short HEAD)
+        COMMIT_DATE=$(git show -s --format=%ci HEAD | cut -d' ' -f1 | tr -d '-')
+        BASE_VERSION=$(cat VERSION 2>/dev/null || echo '116')
+        VERSION="${BASE_VERSION}+git${COMMIT_DATE}.${COMMIT_HASH}"
 
-        # Install basic build tools and equivs for mk-build-deps
-        sudo apt-get install -y build-essential devscripts debhelper equivs
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "commit_hash=${COMMIT_HASH}" >> $GITHUB_OUTPUT
+        echo "Building version: $VERSION for Debian trixie"
 
-        # Extract and install dependencies from debian/control
-        if [ -f "debian/control" ]; then
-          echo "Installing dependencies from debian/control..."
-          sudo mk-build-deps -t 'apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -qqy' -i -r debian/control
-        else
-          # Fallback dependencies if no debian/control
-          echo "No debian/control found, installing common dependencies..."
-          sudo apt-get install -y pkg-config libnss3-dev libnspr4-dev uuid-dev help2man mandoc
-        fi
+        # Update changelog if needed
+        if [ -f "debian/changelog" ] && ! grep -q "$COMMIT_HASH" debian/changelog; then
+          echo "Updating changelog for current HEAD..."
+          cp debian/changelog debian/changelog.bak
 
-    - name: Check and setup Debian packaging
-      run: |
-        if [ -d "debian" ]; then
-          echo "✓ Found existing debian/ directory"
-          ls -la debian/
-
-          # Generate version info for potential changelog update
-          COMMIT_HASH=$(git rev-parse --short HEAD)
-          COMMIT_DATE=$(git show -s --format=%ci HEAD | cut -d' ' -f1 | tr -d '-')
-          BASE_VERSION=$(cat VERSION 2>/dev/null || echo '116')
-          VERSION="${BASE_VERSION}+git${COMMIT_DATE}.${COMMIT_HASH}"
-
-          echo "Building with version: $VERSION"
-
-          # Check if we need to update changelog for HEAD build
-          if ! grep -q "$COMMIT_HASH" debian/changelog; then
-            echo "Updating changelog for current HEAD..."
-            cp debian/changelog debian/changelog.bak
-
-            cat > debian/changelog.new << EOF
+          cat > debian/changelog.new << EOF
         $(head -1 debian/changelog | sed "s/([^)]*)/($VERSION-1)/")
 
-          * Build from HEAD commit $COMMIT_HASH
-          * Manual build via GitHub Actions
+          * Manual build from HEAD commit $COMMIT_HASH
+          * Built via GitHub Actions for Debian trixie
+          * Repository: ${{ github.repository }}
 
          -- ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>  $(date -R)
 
         EOF
-            tail -n +2 debian/changelog >> debian/changelog.new
-            mv debian/changelog.new debian/changelog
-          fi
-
-          # Make sure debian/rules is executable
-          chmod +x debian/rules
-        else
-          echo "❌ No debian/ directory found!"
-          echo "Please copy the official Debian packaging files to debian/ directory"
-          exit 1
+          tail -n +2 debian/changelog >> debian/changelog.new
+          mv debian/changelog.new debian/changelog
         fi
 
-    - name: Build and test package
+    - name: Build .deb package
+      uses: sayanchowdhury/build-dpkg-trixie@v1
+      id: build
+      with:
+        args: --unsigned-source --unsigned-changes --build=binary
+
+    - name: Display build results
       run: |
-        # Build the package
-        dpkg-buildpackage -b -us -uc
+        echo "=== Build completed successfully! ==="
+        echo "Package filename: ${{ steps.build.outputs.filename }}"
+        echo "Package path: ${{ steps.build.outputs.filepath }}"
 
-        # Create artifacts directory
-        mkdir artifacts
-        mv ../*.deb artifacts/
+        # Show package info if available
+        if [ -f "${{ steps.build.outputs.filepath }}" ]; then
+          echo "=== Package Information ==="
+          dpkg --info "${{ steps.build.outputs.filepath }}"
+          echo ""
+          echo "=== Package Contents ==="
+          dpkg --contents "${{ steps.build.outputs.filepath }}" | head -20
+          if [ $(dpkg --contents "${{ steps.build.outputs.filepath }}" | wc -l) -gt 20 ]; then
+            echo "... (showing first 20 files)"
+          fi
+        fi
 
-        # Show what we built
-        echo "Built packages:"
-        ls -la artifacts/
+    - name: Upload .deb artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pesign-deb-trixie-${{ steps.version.outputs.version }}
+        path: ${{ steps.build.outputs.filepath }}
+        retention-days: 90
 
-        # Show package info
-        for deb in artifacts/*.deb; do
-          echo "=== Package info for $(basename $deb) ==="
-          dpkg --info "$deb"
-          echo "=== Package contents ==="
-          dpkg --contents "$deb"
-        done
-
-    - name: Test installation (optional)
+    # Optional: Test installation
+    - name: Test package installation
       run: |
-        # Test that the package can be installed
-        sudo dpkg -i artifacts/*.deb || {
+        echo "Testing package installation..."
+        sudo dpkg -i "${{ steps.build.outputs.filepath }}" || {
           echo "Installation failed, trying to fix dependencies..."
+          sudo apt-get update
           sudo apt-get install -f -y
         }
 
-        # Verify pesign is working
-        echo "Testing pesign installation..."
-        which pesign
-        pesign --help | head -10 || echo "Help command failed"
-
-    - name: Upload .deb package
-      uses: actions/upload-artifact@v4
-      with:
-        name: pesign-deb-ubuntu-${{ github.event.inputs.ubuntu_version || '22.04' }}
-        path: artifacts/*.deb
-        retention-days: 90  # Keep for 3 months
+        # Test that pesign is available
+        echo "Verifying pesign installation..."
+        which pesign || echo "pesign binary not found in PATH"
+        pesign --help | head -5 || echo "pesign help command failed"
