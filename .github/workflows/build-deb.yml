@@ -83,7 +83,7 @@ jobs:
     - name: Build and test package
       run: |
         # Build the package
-        dpkg-buildpackage -b -us -uc
+        dpkg-buildpackage -us -uc
 
         # Create artifacts directory
         mkdir artifacts
