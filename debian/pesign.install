@@ -27,7 +27,7 @@ echo /etc/pki/pesign
 #echo %ghost %attr(0660, -, -) ${localstatedir}/run/%{name}/pesign.pid
 echo ${prefix}/lib/tmpfiles.d/pesign.conf
 echo ${unitdir}/pesign.service ${unitdir}
-echo ${datadir}/pesign/pesign-authorize
+# echo ${datadir}/pesign/pesign-authorize
 echo ${sysconfdir}/pesign/users
 echo ${sysconfdir}/pesign/groups
 
