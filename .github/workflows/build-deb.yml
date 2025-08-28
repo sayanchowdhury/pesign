@@ -33,7 +33,7 @@ jobs:
         # Extract and install dependencies from debian/control
         if [ -f "debian/control" ]; then
           echo "Installing dependencies from debian/control..."
-          mk-build-deps -t 'apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -qqy' -i -r debian/control
+          sudo mk-build-deps -t 'apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -qqy' -i -r debian/control
         else
           # Fallback dependencies if no debian/control
           echo "No debian/control found, installing common dependencies..."
