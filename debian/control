@@ -14,6 +14,7 @@ Build-Depends: debhelper (>= 10),
  libnspr4-dev,
  libnss3-dev,
  libefivar-dev,
+ libefisec-dev,
  uuid-dev
 Standards-Version: 4.5.1
 Section: devel
