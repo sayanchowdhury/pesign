@@ -31,7 +31,7 @@ jobs:
 
         echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
         echo "commit_hash=${COMMIT_HASH}" >> "$GITHUB_OUTPUT"
-        echo "Building version: $VERSION for Debian bookworm"
+        echo "Building version: $VERSION for Debian trixie"
 
         # Update changelog if needed
         if [ -f debian/changelog ] && ! grep -q "$COMMIT_HASH" debian/changelog; then
@@ -46,7 +46,7 @@ jobs:
           {
             printf 'pesign (%s-1) unstable; urgency=medium\n\n' "$VERSION"
             printf '  * Manual build from HEAD commit %s\n' "$COMMIT_HASH"
-            printf '  * Built via GitHub Actions for Debian bookworm\n'
+            printf '  * Built via GitHub Actions for Debian trixie\n'
             printf '  * Repository: %s\n\n' "${GITHUB_REPOSITORY:-unknown/unknown}"
             # Exactly one leading space before --, two spaces before the date
             printf ' -- %s <%s@users.noreply.github.com>  %s\n\n' \
@@ -64,7 +64,7 @@ jobs:
         cat debian/changelog || echo "No changelog file found"
 
     - name: Build .deb package
-      uses: sayanchowdhury/build-dpkg-bookworm@v1
+      uses: sayanchowdhury/build-dpkg-trixie@v1
       id: build
       with:
         args: --unsigned-source --unsigned-changes --build=binary
@@ -90,7 +90,7 @@ jobs:
     - name: Upload .deb artifact
       uses: actions/upload-artifact@v4
       with:
-        name: pesign-deb-bookworm-${{ steps.version.outputs.version }}
+        name: pesign-deb-trixie-${{ steps.version.outputs.version }}
         path: ${{ steps.build.outputs.filename }}
         retention-days: 90
 
